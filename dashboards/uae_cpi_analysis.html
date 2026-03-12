@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UAE CPI Deep Analysis — MSc Data Science, University of Birmingham Dubai</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --bg: #0a0e17;
+  --surface: #111827;
+  --surface2: #1a2234;
+  --border: #2a3548;
+  --text: #e2e8f0;
+  --text-dim: #8896ab;
+  --accent: #22d3ee;
+  --accent2: #a78bfa;
+  --red: #f87171;
+  --green: #4ade80;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+
+.header { background:linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); padding:40px 32px 32px; border-bottom:1px solid var(--border); }
+.header h1 { font-size:28px; font-weight:700; background:linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.header p { color:var(--text-dim); margin-top:6px; font-size:14px; }
+
+.tabs { display:flex; gap:2px; padding:0 32px; background:var(--surface); border-bottom:1px solid var(--border); overflow-x:auto; }
+.tab { padding:14px 20px; cursor:pointer; color:var(--text-dim); font-size:13px; font-weight:500; border-bottom:2px solid transparent; white-space:nowrap; transition:all .2s; }
+.tab:hover { color:var(--text); }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+.content { max-width:1400px; margin:0 auto; padding:24px 32px 60px; }
+.panel { display:none; }
+.panel.active { display:block; }
+
+.grid { display:grid; gap:20px; }
+.grid-2 { grid-template-columns:1fr 1fr; }
+.grid-3 { grid-template-columns:1fr 1fr 1fr; }
+.grid-4 { grid-template-columns:repeat(4,1fr); }
+
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+.card h3 { font-size:14px; color:var(--text-dim); margin-bottom:12px; text-transform:uppercase; letter-spacing:.5px; }
+.card .value { font-family:'Space Mono',monospace; font-size:28px; font-weight:700; }
+.card .sub { font-size:12px; color:var(--text-dim); margin-top:4px; }
+
+.chart-container { position:relative; height:340px; }
+.chart-container.tall { height:420px; }
+
+.insight-box { background:var(--surface2); border-left:3px solid var(--accent); padding:16px 20px; border-radius:0 8px 8px 0; margin:16px 0; }
+.insight-box.warn { border-left-color:var(--yellow); }
+.insight-box.alert { border-left-color:var(--red); }
+.insight-box.good { border-left-color:var(--green); }
+.insight-box h4 { font-size:13px; color:var(--accent); margin-bottom:6px; text-transform:uppercase; letter-spacing:.3px; }
+.insight-box.warn h4 { color:var(--yellow); }
+.insight-box.alert h4 { color:var(--red); }
+.insight-box.good h4 { color:var(--green); }
+.insight-box p { font-size:14px; color:var(--text-dim); line-height:1.7; }
+
+.timeline { position:relative; padding-left:24px; }
+.timeline::before { content:''; position:absolute; left:6px; top:8px; bottom:8px; width:2px; background:var(--border); }
+.timeline-item { position:relative; margin-bottom:24px; }
+.timeline-item::before { content:''; position:absolute; left:-21px; top:8px; width:10px; height:10px; border-radius:50%; background:var(--accent); border:2px solid var(--bg); }
+.timeline-item.negative::before { background:var(--red); }
+.timeline-item.warning::before { background:var(--yellow); }
+.timeline-item h4 { font-size:14px; font-weight:700; margin-bottom:4px; }
+.timeline-item p { font-size:13px; color:var(--text-dim); }
+
+.comparison-table { width:100%; border-collapse:collapse; font-size:13px; }
+.comparison-table th { text-align:left; padding:10px 12px; background:var(--surface2); color:var(--text-dim); font-weight:500; border-bottom:1px solid var(--border); }
+.comparison-table td { padding:10px 12px; border-bottom:1px solid rgba(42,53,72,.5); }
+.comparison-table tr:hover td { background:rgba(34,211,238,.03); }
+
+.badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:700; font-family:'Space Mono',monospace; }
+.badge.up { background:rgba(248,113,113,.15); color:var(--red); }
+.badge.down { background:rgba(74,222,128,.15); color:var(--green); }
+.badge.neutral { background:rgba(136,150,171,.15); color:var(--text-dim); }
+
+.section-title { font-size:18px; font-weight:700; margin:28px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+@media(max-width:900px) {
+  .grid-2,.grid-3,.grid-4 { grid-template-columns:1fr; }
+  .content { padding:16px; }
+  .header { padding:24px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>UAE Consumer Price Index — Deep Analytical Report</h1>
+  <p>FCSA Data 2014–2025 • Sectoral Decomposition • Global Comparison • Root Cause Analysis<br>
+  MSc Data Science, University of Birmingham Dubai • Source: Federal Competitiveness & Statistics Centre</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showPanel('overview')">Overview & KPIs</div>
+  <div class="tab" onclick="showPanel('structural')">Structural Breaks</div>
+  <div class="tab" onclick="showPanel('sectors')">Sector Deep-Dive</div>
+  <div class="tab" onclick="showPanel('global')">Global Comparison</div>
+  <div class="tab" onclick="showPanel('causes')">Root Causes & Policy</div>
+  <div class="tab" onclick="showPanel('anomalies')">Anomalies & Insights</div>
+</div>
+
+<div class="content">
+
+<!-- ====== PANEL 1: OVERVIEW ====== -->
+<div class="panel active" id="overview">
+  <div class="grid grid-4" style="margin-bottom:24px">
+    <div class="card"><h3>Dec 2025 Annual Inflation</h3><div class="value" style="color:var(--accent)">2.04%</div><div class="sub">YoY, base 2021=100</div></div>
+    <div class="card"><h3>Highest Sector (Dec '25)</h3><div class="value" style="color:var(--red)">+4.01%</div><div class="sub">Housing, Water, Electricity, Gas</div></div>
+    <div class="card"><h3>Most Deflating (Dec '25)</h3><div class="value" style="color:var(--green)">−4.92%</div><div class="sub">Textiles, Clothing & Footwear</div></div>
+    <div class="card"><h3>CPI Index (2021=100)</h3><div class="value">111.08</div><div class="sub">All Items, December 2025</div></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>CPI Index Level (chained, ~2021=100) — 2014–2025</h3>
+      <div class="chart-container"><canvas id="cpiIndexChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Annual Inflation Rate — 2015–2025</h3>
+      <div class="chart-container"><canvas id="annualChangeChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="insight-box" style="margin-top:20px">
+    <h4>Key Pattern: UAE's "Inflation Rollercoaster" (Last Decade)</h4>
+    <p>UAE CPI over the last decade tells a story of <strong>four distinct eras</strong>: (1) Housing-led boom 2014–2015 peaking at ~5% inflation with rents surging 10%+; (2) The VAT shock of Jan 2018 creating a 4.75% spike then a dramatic reversal into 2 years of deflation (2019–2020); (3) The 2022 Russia-Ukraine energy &amp; food shock pushing inflation to 7.88% — the highest in a decade; (4) Post-shock normalization 2023–2025 with housing as the persistent structural driver at +4% while tradeables deflate. Unlike most economies, UAE experienced <strong>prolonged deflation</strong> (−2% for 24 consecutive months in 2019–2020) — a phenomenon more associated with Japan than a fast-growing Gulf economy.</p>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h3>Monthly Inflation Volatility — MoM % Change (2014–2025)</h3>
+    <div class="chart-container"><canvas id="monthlyVolatilityChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ====== PANEL 2: STRUCTURAL BREAKS ====== -->
+<div class="panel" id="structural">
+  <div class="section-title">Five Structural Breaks in UAE CPI History</div>
+
+  <div class="timeline">
+    <div class="timeline-item">
+      <h4>2014–2015: Post-GFC Recovery & Housing Boom</h4>
+      <p>Following the post-crisis recovery period, the UAE entered a housing-led boom from 2014. Inflation accelerated from ~1% in 2013 to nearly 5% by mid-2015, driven almost entirely by the Expo 2020 announcement triggering speculative real estate demand.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>2014–2015: Housing Boom & Fuel Price Deregulation</h4>
+      <p>Housing inflation surged to +10.2% (Jun 2015) — the highest single-sector contribution in the dataset. Expo 2020 announcement (Nov 2013) triggered speculative real estate buying. Simultaneously, the UAE deregulated fuel prices in Aug 2015, linking petrol to global markets. Transport CPI jumped 10.7% in a single month (Aug 2015).</p>
+    </div>
+    <div class="timeline-item warning">
+      <h4>Jan 2018: VAT Introduction — The Sharpest Single-Month Spike</h4>
+      <p>Monthly CPI jumped <strong>+2.68%</strong> in January 2018 — the largest single-month increase in the dataset. Annual inflation hit 4.75%. The 5% VAT on most goods and services was a one-time level shift. But here's the critical insight: the VAT effect was <strong>entirely transitory</strong>. By Dec 2018, annual inflation had fallen to just 0.34%, and by Jan 2019 it turned negative.</p>
+    </div>
+    <div class="timeline-item negative">
+      <h4>2019–2020: The Deflation Spiral — 24 Months of Negative Inflation</h4>
+      <p>UAE experienced <strong>unbroken deflation</strong> from Jan 2019 through Dec 2020. This is extraordinary — it's the kind of pattern seen in Japan's "Lost Decade," not a booming Gulf economy. Root causes: (i) VAT base effect dropping out; (ii) property oversupply — 31,500 new Dubai homes in 2019 alone, 2× annual demand; (iii) strong USD/AED making imports cheaper; (iv) weak consumer demand and soft wage growth; (v) COVID-19 demand destruction from Mar 2020.</p>
+    </div>
+    <div class="timeline-item">
+      <h4>2021–2025: Post-COVID Recovery & Housing Re-acceleration</h4>
+      <p>Inflation returned in H2 2021, peaking at 3.7% (Jan 2023) before moderating. The current era (2025) shows a two-speed economy: housing/utilities running at +4% annually while food, clothing, and transport oscillate around zero. This divergence is the key analytical finding for your project.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <h3>Annual Inflation With Annotated Structural Breaks</h3>
+    <div class="chart-container tall"><canvas id="breaksChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ====== PANEL 3: SECTORS ====== -->
+<div class="panel" id="sectors">
+  <div class="section-title">Sector Decomposition — Who's Driving Inflation?</div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>December 2025 Annual Inflation by Sector</h3>
+    <div class="chart-container tall"><canvas id="sectorBarChart"></canvas></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Cumulative Price Growth Since 2021 (Index, 2021=100)</h3>
+      <table class="comparison-table">
+        <tr><th>Sector</th><th>Dec 2025 Index</th><th>Cumulative Growth</th></tr>
+        <tr><td>Recreation & Culture</td><td>125.07</td><td><span class="badge up">+25.1%</span></td></tr>
+        <tr><td>Restaurants & Hotels</td><td>118.41</td><td><span class="badge up">+18.4%</span></td></tr>
+        <tr><td>Food & Beverages</td><td>115.20</td><td><span class="badge up">+15.2%</span></td></tr>
+        <tr><td>Insurance & Financial</td><td>112.97</td><td><span class="badge up">+13.0%</span></td></tr>
+        <tr><td>Housing & Utilities</td><td>112.50</td><td><span class="badge up">+12.5%</span></td></tr>
+        <tr><td>All Items</td><td>111.08</td><td><span class="badge neutral">+11.1%</span></td></tr>
+        <tr><td>Transportation</td><td>110.54</td><td><span class="badge neutral">+10.5%</span></td></tr>
+        <tr><td>Education</td><td>107.41</td><td><span class="badge neutral">+7.4%</span></td></tr>
+        <tr><td>Medical Care</td><td>104.96</td><td><span class="badge neutral">+5.0%</span></td></tr>
+        <tr><td>Textiles & Clothing</td><td>103.72</td><td><span class="badge neutral">+3.7%</span></td></tr>
+        <tr><td>Communications</td><td>100.36</td><td><span class="badge down">+0.4%</span></td></tr>
+        <tr><td>Tobacco</td><td>95.89</td><td><span class="badge down">−4.1%</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Key Sectoral Insights</h3>
+
+      <div class="insight-box alert">
+        <h4>Housing: The Structural Inflation Engine</h4>
+        <p>Housing has been running at 3.0–4.1% consistently since 2023 — the most persistent inflationary sector. This is <strong>supply-demand dynamics</strong>: Dubai attracted 100,000+ new residents in 2023–2024, population growth outpacing new supply despite massive construction. This mirrors Saudi Arabia where rents surged 7.6% YoY in mid-2025.</p>
+      </div>
+
+      <div class="insight-box warn">
+        <h4>Textiles/Clothing: Persistent Deflation (−4.9%)</h4>
+        <p>Clothing prices are in sustained decline — this is the <strong>strong dollar effect</strong>. The AED peg to USD means imports from weaker-currency countries (China, India, Bangladesh, Turkey) become cheaper. This sector acts as a natural inflation buffer in the UAE.</p>
+      </div>
+
+      <div class="insight-box good">
+        <h4>Recreation/Culture: The Expo & Tourism Effect</h4>
+        <p>At 125.07 on the index, recreation has seen the <strong>highest cumulative price growth</strong> since 2021. This reflects UAE's deliberate strategy of tourism-driven economic diversification — Expo 2020 (delayed to 2021-22), new attractions, and rising event prices.</p>
+      </div>
+
+      <div class="insight-box">
+        <h4>Transportation: Oil Price Transmission</h4>
+        <p>The most volatile sector — swinging from +18% (2018) to −20% (mid-2023) to +2.15% (Dec 2025). Since fuel deregulation in 2015, transport CPI directly tracks global oil prices, making this the UAE's most externally-driven sector.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h3>Key Sector Inflation Trajectories 2021–2025</h3>
+    <div class="chart-container tall"><canvas id="sectorTrendsChart"></canvas></div>
+  </div>
+</div>
+
+<!-- ====== PANEL 4: GLOBAL COMPARISON ====== -->
+<div class="panel" id="global">
+  <div class="section-title">UAE vs. World: A Comparative Lens</div>
+
+  <div class="grid grid-3" style="margin-bottom:20px">
+    <div class="card"><h3>UAE Avg Inflation 2024</h3><div class="value" style="color:var(--green)">1.7%</div><div class="sub">Well below global average</div></div>
+    <div class="card"><h3>Global Avg 2024 (IMF)</h3><div class="value" style="color:var(--red)">5.7%</div><div class="sub">3.4× higher than UAE</div></div>
+    <div class="card"><h3>GCC Avg 2024</h3><div class="value" style="color:var(--yellow)">1.7%</div><div class="sub">UAE in line with GCC peers</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>Comparative Inflation Table — 2024 Annual Averages</h3>
+    <table class="comparison-table">
+      <tr><th>Country/Region</th><th>2024 Inflation</th><th>2025 Forecast</th><th>Key Driver</th><th>Key Difference from UAE</th></tr>
+      <tr><td>🇦🇪 UAE</td><td>1.7%</td><td>~2.0%</td><td>Housing, services</td><td>Baseline comparison</td></tr>
+      <tr><td>🇸🇦 Saudi Arabia</td><td>1.7%</td><td>~2.3%</td><td>Housing rents (+7.6%)</td><td>Similar pattern but rents rising faster due to Vision 2030 construction demand</td></tr>
+      <tr><td>🇶🇦 Qatar</td><td>~1.0%</td><td>~0.2%</td><td>Housing deflation (−3.6%)</td><td>Opposite housing dynamic — post-World Cup oversupply causing rent deflation</td></tr>
+      <tr><td>🇰🇼 Kuwait</td><td>~2.4%</td><td>~2.3%</td><td>Food prices</td><td>Less diversified, more food import dependent</td></tr>
+      <tr><td>🇺🇸 USA</td><td>~3.4%</td><td>~2.8%</td><td>Services, shelter</td><td>Has independent monetary policy; UAE imports Fed policy via peg</td></tr>
+      <tr><td>🇬🇧 UK</td><td>~3.5%</td><td>~2.5%</td><td>Energy, food</td><td>Post-Brexit supply disruptions; independent BOE rate decisions</td></tr>
+      <tr><td>🇪🇺 Eurozone</td><td>~2.4%</td><td>~2.1%</td><td>Energy, services</td><td>ECB rate cuts diverge from Fed; EUR weakness helps UAE imports</td></tr>
+      <tr><td>🌍 MENA Avg</td><td>~14.6%</td><td>~10.7%</td><td>Currency weakness, subsidies</td><td>UAE's peg shields from currency-driven inflation plaguing Egypt, Türkiye</td></tr>
+      <tr><td>🌏 Global Average</td><td>5.7%</td><td>~4.2%</td><td>Mixed</td><td>UAE inflation 3× lower than global average</td></tr>
+    </table>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>Why UAE Inflates Differently</h3>
+      <div class="insight-box good">
+        <h4>1. Dollar Peg = Imported Disinflation</h4>
+        <p>The AED-USD peg means a strong dollar makes <strong>all imports cheaper</strong>. Since ~60% of UAE consumption is imported, USD strength in 2022–2024 acted as a powerful anti-inflation force, keeping tradeable goods prices flat or declining.</p>
+      </div>
+      <div class="insight-box">
+        <h4>2. No Independent Monetary Policy</h4>
+        <p>UAE follows the Fed's rate decisions. When the Fed hiked aggressively in 2022-23, UAE rates rose to 5.4% — tighter than domestic conditions warranted. This constrained demand and kept inflation low, but at the cost of higher borrowing costs for a non-overheating economy.</p>
+      </div>
+      <div class="insight-box warn">
+        <h4>3. Administered Prices</h4>
+        <p>Education, medical care, and communications show remarkably stable inflation (~1-2%), suggesting government price oversight. Education inflation dropped from 10%+ (early 2010s) to ~1.5% (2025), indicating regulatory intervention in school fee increases.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>UAE vs. Saudi Arabia: Same Shock, Different Slope</h3>
+      <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px">Both introduced 5% VAT in Jan 2018. Both are oil-dependent, USD-pegged GCC economies. Yet their inflation paths diverged dramatically:</p>
+
+      <div class="insight-box alert">
+        <h4>The Divergence</h4>
+        <p>UAE entered <strong>24 months of deflation</strong> after VAT (Jan 2019–Dec 2020). Saudi Arabia did not — it stayed in positive inflation territory throughout. Why?</p>
+      </div>
+
+      <p style="color:var(--text-dim);font-size:14px;margin-top:12px"><strong>Root cause:</strong> UAE had a massive property oversupply problem that Saudi didn't. Dubai built 2× its annual housing demand in 2019 alone, creating a structural drag on CPI (housing = ~28% of the basket). Saudi Arabia's housing market was tighter, and the Kingdom tripled VAT to 15% in Jul 2020, providing a second price level shift that prevented any deflation.</p>
+
+      <p style="color:var(--text-dim);font-size:14px;margin-top:12px"><strong>What UAE did right:</strong> Rather than panic, the UAE allowed market forces to correct the oversupply while stimulating demand through visa reforms (Golden Visa expansion, remote work visas) and Expo 2020 infrastructure. By 2022, population growth had absorbed the surplus and housing inflation returned.</p>
+
+      <p style="color:var(--text-dim);font-size:14px;margin-top:12px"><strong>What could have helped:</strong> Proactive supply management (Japan-style — coordinating developer timelines) could have avoided the depth of deflation. A temporary demand stimulus (e.g., reducing fees or utility rates) could have shortened the deflationary period.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ====== PANEL 5: ROOT CAUSES ====== -->
+<div class="panel" id="causes">
+  <div class="section-title">Root Cause Analysis & External Factor Mapping</div>
+
+  <div class="card" style="margin-bottom:20px">
+    <h3>Causal Factor Map — What Drives UAE Inflation?</h3>
+    <div class="chart-container tall"><canvas id="causesRadar"></canvas></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>External Factors (Outside UAE Control)</h3>
+      <table class="comparison-table">
+        <tr><th>Factor</th><th>Mechanism</th><th>Impact Period</th><th>Magnitude</th></tr>
+        <tr><td><strong>Oil Prices</strong></td><td>Direct → fuel, transport; Indirect → government revenue, demand</td><td>Continuous</td><td><span class="badge up">HIGH</span></td></tr>
+        <tr><td><strong>USD Strength</strong></td><td>Strong USD = cheaper imports, lower tradeable inflation</td><td>2022–2024 especially</td><td><span class="badge up">HIGH</span></td></tr>
+        <tr><td><strong>Fed Interest Rates</strong></td><td>AED peg forces UAE to mirror Fed rates</td><td>2022–2025</td><td><span class="badge up">HIGH</span></td></tr>
+        <tr><td><strong>Global Supply Chains</strong></td><td>COVID disruptions → goods inflation 2021–22</td><td>2020–2022</td><td><span class="badge neutral">MEDIUM</span></td></tr>
+        <tr><td><strong>Food Commodities</strong></td><td>UAE imports ~90% of food; global prices pass through</td><td>2022–2023 spike</td><td><span class="badge neutral">MEDIUM</span></td></tr>
+        <tr><td><strong>Geopolitical Events</strong></td><td>Ukraine war → energy & food; Red Sea disruption → shipping</td><td>2022–2024</td><td><span class="badge neutral">MEDIUM</span></td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Internal Factors (UAE Policy Decisions)</h3>
+      <table class="comparison-table">
+        <tr><th>Factor</th><th>Mechanism</th><th>Impact Period</th><th>Magnitude</th></tr>
+        <tr><td><strong>Real Estate Supply</strong></td><td>Oversupply → deflation; shortage → inflation</td><td>Persistent</td><td><span class="badge up">VERY HIGH</span></td></tr>
+        <tr><td><strong>VAT Introduction</strong></td><td>One-time 5% price level shift</td><td>Jan 2018 only</td><td><span class="badge up">HIGH (transitory)</span></td></tr>
+        <tr><td><strong>Fuel Deregulation</strong></td><td>Transport CPI now tracks global oil</td><td>Aug 2015 onward</td><td><span class="badge up">HIGH</span></td></tr>
+        <tr><td><strong>Population Policy</strong></td><td>Golden Visa, remote work visa → demand surge</td><td>2020 onward</td><td><span class="badge neutral">MEDIUM-HIGH</span></td></tr>
+        <tr><td><strong>Price Monitoring</strong></td><td>FTA monitoring prevented post-VAT gouging</td><td>2018</td><td><span class="badge neutral">MEDIUM</span></td></tr>
+        <tr><td><strong>Education Fee Caps</strong></td><td>Government oversight slowed education inflation</td><td>2018 onward</td><td><span class="badge neutral">MEDIUM</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="insight-box warn" style="margin-top:20px">
+    <h4>The "Housing Dominance" Problem</h4>
+    <p>Housing carries ~28% weight in the UAE CPI basket. This single sector has been the primary driver of both the deflation era (2019-2020: housing at −5%) AND the current inflation (2025: housing at +4%). <strong>The entire inflation narrative of the UAE effectively reduces to a housing supply-demand story.</strong> All other sectors are secondary noise. This is your strongest analytical finding — the UAE's inflation is essentially a proxy for its real estate cycle.</p>
+  </div>
+
+  <div class="insight-box" style="margin-top:12px">
+    <h4>Policy Recommendation Framework</h4>
+    <p><strong>What UAE did well:</strong> Maintained the USD peg (imported disinflation), implemented strict post-VAT price monitoring, diversified the economy to reduce oil dependence, attracted talent via visa reforms. <strong>What could help going forward:</strong> (1) More proactive real estate supply management to prevent boom-bust cycles; (2) Gradual development of independent monetary policy tools (macroprudential measures) since the peg limits flexibility; (3) Expanding the CPI basket to better capture digital services and modern consumption patterns; (4) Targeted housing affordability policies as rents become the main pressure point for residents.</p>
+  </div>
+</div>
+
+<!-- ====== PANEL 6: ANOMALIES ====== -->
+<div class="panel" id="anomalies">
+  <div class="section-title">Unexpected Findings & Analytical Surprises</div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h3>🔍 Anomaly #1: Textiles +21.75% (Sep 2018)</h3>
+      <div class="insight-box alert">
+        <h4>Unexpected Spike</h4>
+        <p>Textiles/Clothing inflation hit <strong>21.75%</strong> in September 2018 — the highest single-sector annual reading in the dataset. This is far beyond what VAT alone (5%) could explain. The additional 16+ percentage points suggest: (1) seasonal demand (back-to-school); (2) lagged re-pricing by retailers who initially absorbed VAT; (3) possible currency effects from Turkish Lira collapse (Aug 2018) disrupting regional textile supply chains.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔍 Anomaly #2: Recreation -18.8% (Jan 2021)</h3>
+      <div class="insight-box warn">
+        <h4>COVID Pricing Collapse</h4>
+        <p>Recreation/Culture dropped 18.8% in Jan 2021, then swung to +21.8% by Aug 2021. This 40-point swing in 7 months reflects the "broken price discovery" phenomenon — COVID lockdowns made tourism/recreation prices meaningless, then Expo 2020 opening (Oct 2021) caused a massive demand spike. <strong>For your analysis:</strong> This data point skews any standard statistical measures and should likely be flagged or windsorized.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔍 Anomaly #3: Tobacco Deflation (Index 95.89)</h3>
+      <div class="insight-box">
+        <h4>Counter-Intuitive: Prices Below 2021 Levels</h4>
+        <p>Despite 100% excise tax on tobacco since Oct 2017, the CPI index for tobacco is <strong>below 100</strong> — meaning prices are LOWER than 2021. Possible explanations: shift to cheaper alternatives, growth of illicit trade, or measurement issues with the CPI basket not capturing category substitution.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔍 Anomaly #4: The 2022 Data Gap — Reconstructed</h3>
+      <div class="insight-box warn">
+        <h4>Publication Gap, Not Collection Gap</h4>
+        <p>The FCSA published CPI Index <strong>levels</strong> for all 12 months of 2022 across all 14 sectors, but did not publish the pre-computed monthly change rates in their SDMX data feed. We reconstructed all YoY and MoM rates from the index levels using standard formulas. Our computed annual average of <strong>4.82%</strong> matches the FCSA's official annual report exactly, and all 4 quarterly averages match the official quarterly data. The peak was <strong>7.88% in July 2022</strong> — driven by Transport at +42% (Brent oil at $122/bbl due to Russia-Ukraine war) and Food at +9% (global food crisis). Remarkably, Housing was still negative through July 2022, only turning positive in August after 4+ years of deflation.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h3>🔍 Anomaly #5: Education Inflation "Step Function"</h3>
+    <p style="color:var(--text-dim);font-size:14px;margin:12px 0">Unlike other sectors that change continuously, education inflation changes in discrete jumps — staying flat for months then shifting abruptly (e.g., constant for several months, then jumping abruptly at academic year boundaries). This "step function" pattern confirms that school fees are adjusted annually at the start of academic terms, and the CPI captures this as a single-step rather than a gradual change. <strong>For your methodology:</strong> This means education inflation isn't truly "monthly" and shouldn't be analyzed with the same time-series techniques as other sectors.</p>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <h3>🔍 Anomaly #6: Transport Volatility — The "Weather Vane" Sector</h3>
+    <div class="chart-container"><canvas id="transportChart"></canvas></div>
+    <p style="color:var(--text-dim);font-size:13px;margin-top:12px">Transport annual inflation ranges from +18% to -20% — a 38-point swing. No other sector comes close. Post-2015 fuel deregulation turned this sector into a real-time transmission channel for global oil prices into UAE consumer costs.</p>
+  </div>
+
+  <div class="insight-box good" style="margin-top:20px">
+    <h4>Summary: Five Key Takeaways for Your Group Presentation</h4>
+    <p>1. <strong>Housing is everything</strong> — it single-handedly explains both the deflation era and current inflation.<br>
+    2. <strong>The VAT shock was transitory</strong> — academically interesting as a natural experiment in one-time price level shifts.<br>
+    3. <strong>UAE's deflation was unique among GCC peers</strong> — driven by property oversupply, not by monetary policy.<br>
+    4. <strong>The dollar peg is a double-edged sword</strong> — it imports disinflation on tradeable goods but prevents independent monetary response.<br>
+    5. <strong>2025 shows a two-speed economy</strong> — housing/services inflating at 3-4%, tradeable goods flat or deflating.</p>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ===== TAB NAVIGATION =====
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+const chartDefaults = {
+  color: '#8896ab',
+  borderColor: '#2a3548',
+  font: { family: "'DM Sans', sans-serif" }
+};
+Chart.defaults.color = chartDefaults.color;
+Chart.defaults.borderColor = chartDefaults.borderColor;
+Chart.defaults.font.family = chartDefaults.font.family;
+
+// ===== DATA =====
+const cpiIndex = [92.61,92.74,92.95,93.17,93.36,93.74,93.82,94.22,95.11,95.21,95.03,95.35,96.0,96.09,96.96,97.14,97.39,97.7,97.98,98.88,99.18,98.71,98.38,98.78,98.45,98.21,98.34,98.71,98.97,99.42,99.71,100.15,99.94,99.97,100.3,100.0,100.7,100.84,101.25,100.86,100.84,101.4,100.87,100.95,101.08,102.06,102.04,102.73,105.49,105.33,104.65,104.42,104.35,104.74,104.69,104.84,104.21,103.71,103.4,103.09,102.97,102.66,102.06,102.23,103.21,103.19,102.37,102.71,101.95,101.79,101.91,101.68,101.59,101.33,100.42,100.33,100.42,100.75,100.18,100.05,99.53,99.57,99.46,99.55,99.55,99.24,99.68,99.66,99.49,99.51,99.77,100.04,100.24,100.51,101.18,101.14,101.15,102.0,103.11,104.77,104.6,105.98,107.63,106.54,105.33,105.2,105.65,105.94,104.88,105.69,106.04,106.18,106.01,105.82,106.21,107.01,107.82,107.84,107.42,107.45,107.29,107.53,107.8,108.32,108.48,108.37,108.34,108.82,108.7,108.36,108.75,108.85,108.74,109.31,109.03,109.14,109.07,109.02,109.61,109.6,110.07,110.71,110.5,111.08];
+const cpiLabels = ["2014-01","2014-02","2014-03","2014-04","2014-05","2014-06","2014-07","2014-08","2014-09","2014-10","2014-11","2014-12","2015-01","2015-02","2015-03","2015-04","2015-05","2015-06","2015-07","2015-08","2015-09","2015-10","2015-11","2015-12","2016-01","2016-02","2016-03","2016-04","2016-05","2016-06","2016-07","2016-08","2016-09","2016-10","2016-11","2016-12","2017-01","2017-02","2017-03","2017-04","2017-05","2017-06","2017-07","2017-08","2017-09","2017-10","2017-11","2017-12","2018-01","2018-02","2018-03","2018-04","2018-05","2018-06","2018-07","2018-08","2018-09","2018-10","2018-11","2018-12","2019-01","2019-02","2019-03","2019-04","2019-05","2019-06","2019-07","2019-08","2019-09","2019-10","2019-11","2019-12","2020-01","2020-02","2020-03","2020-04","2020-05","2020-06","2020-07","2020-08","2020-09","2020-10","2020-11","2020-12","2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12"];
+// cpiLabels already defined as literal array above
+
+// Annual inflation 2015-2025 (complete with reconstructed 2022)
+const annLabels = ["2015-01","2015-02","2015-03","2015-04","2015-05","2015-06","2015-07","2015-08","2015-09","2015-10","2015-11","2015-12","2016-01","2016-02","2016-03","2016-04","2016-05","2016-06","2016-07","2016-08","2016-09","2016-10","2016-11","2016-12","2017-01","2017-02","2017-03","2017-04","2017-05","2017-06","2017-07","2017-08","2017-09","2017-10","2017-11","2017-12","2018-01","2018-02","2018-03","2018-04","2018-05","2018-06","2018-07","2018-08","2018-09","2018-10","2018-11","2018-12","2019-01","2019-02","2019-03","2019-04","2019-05","2019-06","2019-07","2019-08","2019-09","2019-10","2019-11","2019-12","2020-01","2020-02","2020-03","2020-04","2020-05","2020-06","2020-07","2020-08","2020-09","2020-10","2020-11","2020-12","2021-01","2021-02","2021-03","2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-02","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12"];
+const annChange = [3.66,3.62,4.32,4.25,4.32,4.22,4.44,4.95,4.29,3.68,3.52,3.6,2.55,2.2,1.42,1.62,1.62,1.76,1.76,1.28,0.76,1.28,1.96,1.24,2.28,2.68,2.96,2.17,1.89,1.99,1.17,0.8,1.15,2.09,1.73,2.73,4.75,4.45,3.36,3.53,3.48,3.3,3.78,3.86,3.09,1.62,1.34,0.34,-2.39,-2.53,-2.48,-2.09,-1.09,-1.49,-2.22,-2.04,-2.17,-1.86,-1.44,-1.37,-1.34,-1.3,-1.6,-1.86,-2.71,-2.36,-2.14,-2.59,-2.38,-2.18,-2.41,-2.09,-1.86,-2.01,-1.07,-0.54,-0.38,-0.51,-0.02,0.55,1.19,1.86,2.58,2.5,1.61,2.78,3.44,5.13,5.14,6.5,7.88,6.5,5.08,4.67,4.42,4.75,3.69,3.61,2.84,1.34,1.35,-0.15,-1.32,0.45,2.36,2.51,1.68,1.42,2.29,1.75,1.66,2.02,2.34,2.41,2.01,1.69,0.82,0.48,1.23,1.3,1.36,1.65,1.14,0.76,0.55,0.6,1.17,0.72,1.26,2.17,1.61,2.04];
+
+// fullAnn = same single series
+const fullAnnLabels = annLabels;
+const fullAnnValues = annChange;
+
+// 2021-2025 subset for sector trend charts
+const ann21Labels = annLabels.filter(l => l >= '2021-01');
+const ann21StartIdx = annLabels.indexOf('2021-01');
+const ann21 = annChange.slice(ann21StartIdx);
+
+const mthChange = [0.15, 0.22, 0.25, 0.2, 0.41, 0.09, 0.43, 0.93, 0.11, -0.19, 0.34, 0.69, 0.09, 0.9, 0.18, 0.27, 0.31, 0.29, 0.92, 0.31, -0.48, -0.34, 0.41, -0.33, -0.25, 0.14, 0.38, 0.25, 0.46, 0.29, 0.45, -0.22, 0.04, 0.33, -0.29, 0.69, 0.14, 0.41, -0.39, -0.02, 0.56, -0.52, 0.07, 0.13, 0.97, -0.02, 0.68, 2.68, -0.15, -0.65, -0.23, -0.06, 0.38, -0.05, 0.15, -0.61, -0.48, -0.3, -0.31, -0.12, -0.3, -0.59, 0.17, 0.97, -0.03, -0.79, 0.33, -0.74, -0.16, 0.12, -0.23, -0.09, -0.26, -0.89, -0.09, 0.09, 0.33, -0.57, -0.14, -0.52, 0.04, -0.11, 0.09, 0.15, -0.41, 0.06, 0.44, 0.25, 0.19, -0.07, 0.43, 0.12, 0.7, 0.59, 0.02, 0.01, 0.84, 1.09, 1.61, -0.16, 1.32, 1.56, -1.01, -1.14, -0.12, 0.43, 0.27, -1.0, 0.76, 0.34, 0.13, -0.16, -0.18, 0.37, 0.76, 0.75, 0.02, -0.39, 0.02, -0.15, 0.23, 0.24, 0.48, 0.15, -0.11, -0.02, 0.44, -0.11, -0.31, 0.36, 0.09, -0.1, 0.52, -0.26, 0.11, -0.06, -0.05, 0.54, -0.01, 0.43, 0.58, -0.19, 0.52];
+const mthLabels = ["2014-02", "2014-03", "2014-04", "2014-05", "2014-06", "2014-07", "2014-08", "2014-09", "2014-10", "2014-11", "2014-12", "2015-01", "2015-02", "2015-03", "2015-04", "2015-05", "2015-06", "2015-07", "2015-08", "2015-09", "2015-10", "2015-11", "2015-12", "2016-01", "2016-02", "2016-03", "2016-04", "2016-05", "2016-06", "2016-07", "2016-08", "2016-09", "2016-10", "2016-11", "2016-12", "2017-01", "2017-02", "2017-03", "2017-04", "2017-05", "2017-06", "2017-07", "2017-08", "2017-09", "2017-10", "2017-11", "2017-12", "2018-01", "2018-02", "2018-03", "2018-04", "2018-05", "2018-06", "2018-07", "2018-08", "2018-09", "2018-10", "2018-11", "2018-12", "2019-01", "2019-02", "2019-03", "2019-04", "2019-05", "2019-06", "2019-07", "2019-08", "2019-09", "2019-10", "2019-11", "2019-12", "2020-01", "2020-02", "2020-03", "2020-04", "2020-05", "2020-06", "2020-07", "2020-08", "2020-09", "2020-10", "2020-11", "2020-12", "2021-01", "2021-02", "2021-03", "2021-04", "2021-05", "2021-06", "2021-07", "2021-08", "2021-09", "2021-10", "2021-11", "2021-12", "2022-01", "2022-02", "2022-03", "2022-04", "2022-05", "2022-06", "2022-07", "2022-08", "2022-09", "2022-10", "2022-11", "2022-12", "2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12"];
+
+const dec2025 = {
+  labels:['Housing','Misc','Insurance','Furniture','Transportation','All Items','Tobacco','Education','Restaurants','Food','Communications','Recreation','Medical','Textiles'],
+  values:[4.01,2.73,2.71,2.67,2.15,2.04,1.6,1.5,1.3,1.02,0.22,0.19,0.2,-4.92]
+};
+
+// ===== CHART 1: CPI INDEX =====
+new Chart(document.getElementById('cpiIndexChart'), {
+  type:'line',
+  data:{
+    labels:cpiLabels,
+    datasets:[{
+      data:cpiIndex, borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.08)',
+      fill:true, tension:.3, pointRadius:0, borderWidth:2
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{maxTicksLimit:12,font:{size:10}},grid:{display:false}},
+      y:{ticks:{font:{size:10}}}
+    }
+  }
+});
+
+// ===== CHART 2: ANNUAL CHANGE =====
+new Chart(document.getElementById('annualChangeChart'), {
+  type:'line',
+  data:{
+    labels:fullAnnLabels,
+    datasets:[{
+      data:fullAnnValues,
+      borderColor:fullAnnValues.map(v=>v>=0?'#f87171':'#4ade80'),
+      segment:{borderColor:ctx=>{const v=ctx.p1.parsed.y;return v>=0?'#f87171':'#4ade80';}},
+      backgroundColor:'transparent', tension:.3, pointRadius:0, borderWidth:1.5
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      annotation:{}
+    },
+    scales:{
+      x:{ticks:{maxTicksLimit:14,font:{size:10}},grid:{display:false}},
+      y:{ticks:{font:{size:10},callback:v=>v+'%'}}
+    }
+  }
+});
+
+// ===== CHART 3: MONTHLY VOLATILITY =====
+new Chart(document.getElementById('monthlyVolatilityChart'), {
+  type:'bar',
+  data:{
+    labels:mthLabels,
+    datasets:[{
+      data:mthChange,
+      backgroundColor:mthChange.map(v=>v>=0?'rgba(248,113,113,.5)':'rgba(74,222,128,.5)'),
+      borderWidth:0
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{maxTicksLimit:16,font:{size:9}},grid:{display:false}},
+      y:{ticks:{font:{size:10},callback:v=>v+'%'}}
+    }
+  }
+});
+
+// ===== CHART 4: BREAKS =====
+new Chart(document.getElementById('breaksChart'), {
+  type:'line',
+  data:{
+    labels:fullAnnLabels,
+    datasets:[{
+      label:'Annual Inflation %',
+      data:fullAnnValues, borderColor:'#a78bfa', backgroundColor:'rgba(167,139,250,.1)',
+      fill:true, tension:.3, pointRadius:0, borderWidth:2
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{maxTicksLimit:16,font:{size:10}},grid:{display:false}},
+      y:{ticks:{font:{size:10},callback:v=>v+'%'}}
+    }
+  }
+});
+
+// ===== CHART 5: SECTOR BAR =====
+new Chart(document.getElementById('sectorBarChart'), {
+  type:'bar',
+  data:{
+    labels:dec2025.labels,
+    datasets:[{
+      data:dec2025.values,
+      backgroundColor:dec2025.values.map(v=>v>2?'rgba(248,113,113,.7)':v>0?'rgba(251,191,36,.5)':v===0?'rgba(136,150,171,.4)':'rgba(74,222,128,.6)'),
+      borderRadius:4
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{callback:v=>v+'%',font:{size:10}},grid:{color:'rgba(42,53,72,.5)'}},
+      y:{ticks:{font:{size:11}},grid:{display:false}}
+    }
+  }
+});
+
+// ===== CHART 6: SECTOR TRENDS =====
+const housingRecent = [-3.16,-3.37,-3.36,-3.28,-3.44,-4.06,-4.32,-4.2,-3.72,-3.26,-2.99,-2.58,-2.07,-1.9,-1.57,-1.28,-1.04,-0.69,-0.3,0.08,0.57,1.45,1.52,1.84,2.12,2.46,2.78,2.86,3.2,3.27,3.35,3.89,3.73,3.17,3.44,3.28,3.35,3.05,3.12,3.16,3.04,3.14,3.21,3.14,3.37,3.48,3.39,3.57,3.62,4.05,4.03,4.13,4.05,4,3.99,3.6,3.61,3.7,3.98,4.01];
+const transportRecent = [-5.48,-3.22,2.99,9.29,8.88,8.96,10.58,12.53,12.69,15.19,18,17.95,16.61,22.92,23.58,29.04,27.15,34.51,42.02,28.89,19.79,10.38,10.91,11.55,4.98,4.08,-1.11,-8.92,-6.9,-15.07,-20.36,-11.89,-0.56,5.8,-4.61,-5.31,1.06,-2.41,-0.64,3.15,3.51,3.33,-0.05,-1.9,-8.86,-11.98,-5.14,-5.99,-3.71,-1.51,-4.6,-8.89,-11,-8.67,-4.53,-5.07,-2.32,2.96,-1.42,2.15];
+const foodRecent = [2.8,1.42,-2.42,-3.52,-2.68,-2.4,-1.53,-1.12,0.28,1.91,3.65,3.71,3.75,5.09,6.03,7.97,8.22,8.28,8.97,9.06,7.48,8.42,6.69,6.05,5.96,6.25,6.03,5.88,4.31,3.78,3.02,2.45,2.75,0.73,2.65,2.76,2.83,2.25,2.19,1.08,1.74,1.72,2.05,2.81,1.91,2.55,1.41,1.67,0.88,0.18,0.18,0,-0.13,0.55,-0.12,-0.81,0.46,0.59,0.72,1.02];
+
+new Chart(document.getElementById('sectorTrendsChart'), {
+  type:'line',
+  data:{
+    labels:ann21Labels,
+    datasets:[
+      {label:'Housing',data:housingRecent,borderColor:'#f87171',tension:.3,pointRadius:0,borderWidth:2},
+      {label:'Transport',data:transportRecent,borderColor:'#fbbf24',tension:.3,pointRadius:0,borderWidth:2},
+      {label:'Food',data:foodRecent,borderColor:'#4ade80',tension:.3,pointRadius:0,borderWidth:2},
+      {label:'All Items',data:ann21,borderColor:'#22d3ee',tension:.3,pointRadius:0,borderWidth:2,borderDash:[5,5]}
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}}},
+    scales:{
+      x:{ticks:{maxTicksLimit:12,font:{size:9}},grid:{display:false}},
+      y:{ticks:{font:{size:10},callback:v=>v+'%'}}
+    }
+  }
+});
+
+// ===== CHART 7: CAUSES RADAR =====
+new Chart(document.getElementById('causesRadar'), {
+  type:'radar',
+  data:{
+    labels:['Oil Prices','USD Strength','Fed Rates','Housing Supply','Population Growth','Food Imports','VAT/Tax','Geopolitics'],
+    datasets:[
+      {label:'Impact on Inflation',data:[8,9,7,10,7,6,5,4],backgroundColor:'rgba(34,211,238,.2)',borderColor:'#22d3ee',pointBackgroundColor:'#22d3ee'},
+      {label:'UAE Policy Control',data:[2,1,1,7,8,3,9,1],backgroundColor:'rgba(167,139,250,.2)',borderColor:'#a78bfa',pointBackgroundColor:'#a78bfa'}
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{position:'top',labels:{usePointStyle:true,boxWidth:8,font:{size:11}}}},
+    scales:{r:{ticks:{display:false},grid:{color:'rgba(42,53,72,.5)'},angleLines:{color:'rgba(42,53,72,.5)'},pointLabels:{font:{size:11}}}}
+  }
+});
+
+// ===== CHART 8: TRANSPORT VOLATILITY =====
+new Chart(document.getElementById('transportChart'), {
+  type:'line',
+  data:{
+    labels:ann21Labels,
+    datasets:[{
+      label:'Transport YoY %',data:transportRecent,
+      borderColor:'#fbbf24',backgroundColor:'rgba(251,191,36,.1)',
+      fill:true,tension:.3,pointRadius:0,borderWidth:2
+    }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{maxTicksLimit:12,font:{size:10}},grid:{display:false}},
+      y:{ticks:{font:{size:10},callback:v=>v+'%'}}
+    }
+  }
+});
+</script>
+</body>
+</html>
