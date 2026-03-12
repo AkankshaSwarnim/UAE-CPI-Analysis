@@ -8,7 +8,7 @@ A comprehensive analysis of UAE CPI data (2014–2025) covering 14 sectors, 5,50
 
 ## 📊 Key Findings
 
-1. **Housing Dominates** — 28% of CPI basket, single-handedly drives both the 2019-20 deflation era AND current 2025 inflation
+1. **Housing Dominates** — 35% of CPI basket, single-handedly drives both the 2019-20 deflation era AND current 2025 inflation
 2. **VAT Shock was Transitory** — Jan 2018's +2.68% MoM spike (largest ever) fully reversed within 12 months
 3. **24-Month Deflation Unique in GCC** — UAE deflated from Jan 2019–Dec 2020 due to property oversupply, not monetary failure
 4. **Dollar Peg = Double-Edged Sword** — Imports disinflation on tradeables (Textiles −5%) but blocks independent monetary response
