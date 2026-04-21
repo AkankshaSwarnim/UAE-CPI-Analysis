@@ -74,8 +74,8 @@ uploaded = files.upload()  # Select the 3 CSV files
 ### Option C: View Dashboards Only (No Setup)
 
 Just open the HTML files in any browser:
-* [Overview Dashboard (6 interactive tabs)](https://akankshaswarnim.github.io/UAE-CPI-Analysis/dashboards/uae_cpi_analysis.html)
-* [Monthly Deep Analysis (7 tabs)](https://akankshaswarnim.github.io/UAE-CPI-Analysis/dashboards/uae_cpi_monthly_deep_analysis.html)
+* [Overview Dashboard (6 interactive tabs)](https://akankshaswarnim.github.io/UAE-Inflation-EDA-and-Market-Trends/dashboards/uae_cpi_analysis.html)
+* [Monthly Deep Analysis (7 tabs)](https://akankshaswarnim.github.io/UAE-Inflation-EDA-and-Market-Trends/dashboards/uae_cpi_monthly_deep_analysis.html)
 
 No server, no installation needed. Works offline.
 
